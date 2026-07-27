@@ -1,37 +1,39 @@
-version: '3.8'
+version: "3.8"
 
 services:
+
   backend:
     build: .
-    container_name: chat-backend
-    expose:
-      - "8000"
-    restart: always
+    container_name: websocket-backend
+
+    restart: unless-stopped
 
     expose:
       - "8000"
 
     networks:
-      - chat-network
+      - websocket-network
 
   nginx:
-    image: nginx:alpine
-    container_name: chat-nginx
-    ports:
-      - "80:80"
-    volumes:
-      # TODO: Candidates need to map the frontend directory correctly to serve the HTML
-      - ./frontend:/usr/share/nginx/html:ro
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    image: nginx:latest
+
+    container_name: websocket-nginx
+
+    restart: unless-stopped
+
     depends_on:
       - backend
 
-    networks:
-      - chat-network
+    ports:
+      - "80:80"
+
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
 
     networks:
-      - chat-network:
-    
-  networks:
+      - websocket-network
+
+networks:
+  websocket-network:
     driver: bridge
-    restart: always
