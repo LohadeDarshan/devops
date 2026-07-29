@@ -4,7 +4,7 @@ A containerized real-time chat application (FastAPI + WebSockets) deployed behin
 NGINX reverse proxy using Docker Compose, and auto-deployed to an AWS EC2 instance
 via a GitHub Actions CI/CD pipeline.
 
-**Live URL:** http://65.1.134.135/
+**Live URL:** http://3.110.166.186/
 
 ---
 
@@ -84,7 +84,7 @@ Required GitHub repository secrets (**Settings → Secrets and variables → Act
 ### 6.2 One-time server setup
 SSH in and install Docker:
 ```bash
-ssh -i key.pem ubuntu@65.1.134.135
+ssh -i key.pem ubuntu@3.110.166.186
 
 sudo apt update && sudo apt install -y docker.io docker-compose-plugin git
 sudo usermod -aG docker $USER
@@ -94,7 +94,7 @@ git clone https://github.com/LohadeDarshan/devops.git
 cd devops
 docker compose up -d --build
 ```
-Visit `http://65.1.134.135` — the chat app should load, and multiple browser tabs
+Visit `http://3.110.166.186` — the chat app should load, and multiple browser tabs
 should chat in real time.
 
 ### 6.3 Wire up CI/CD
@@ -113,8 +113,3 @@ cd devops
 docker compose up -d --build
 ```
 Open `http://localhost` in two browser tabs to test multi-user chat.
-
-## 8. Bonus / Next Steps (not required)
-- HTTPS via a domain + Let's Encrypt (`certbot`) in front of nginx
-- Netdata/Grafana container for monitoring
-- Terraform for the EC2 provisioning step
