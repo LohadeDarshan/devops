@@ -31,21 +31,34 @@ sibling container. The backend does not publish a port to the host at all (`expo
 not `ports`), so it is only reachable from within the Docker network — nginx is the
 single public entry point.
 
-## 3. NGINX Reverse Proxy & WebSocket Handling
+## 3. How Nginx Reverse Proxy Works
 
-`nginx.conf` does two things:
-- `location /` — serves the static `frontend/index.html` from a read-only bind mount.
-- `location /ws` — proxies to the `websocket_backend` upstream (`backend:8000`) and
-  upgrades the HTTP connection to a WebSocket by forwarding the `Upgrade` and
-  `Connection: Upgrade` headers, which is what turns a normal HTTP request into a
-  persistent, bidirectional socket. `proxy_read_timeout 86400` keeps long-lived chat
-  connections from being cut off by nginx's default timeout.
+`nginx.conf` runs a single `server` block on port `80` with two routes:
+- `location /` — serves the static `frontend/index.html` from a read-only bind mount,
+  so nginx acts as the public-facing web server for the UI.
+- `location /ws` — proxies all traffic to the `websocket_backend` upstream
+  (`backend:8000`), the internal Docker service name of the FastAPI container. This
+  is the reverse-proxy hop: the browser only ever talks to nginx on port 80; nginx
+  is what forwards the request on to the backend container over the internal
+  Docker network.
+
+## 4. How WebSocket Works Through Nginx
+
+A WebSocket connection starts as a normal HTTP request that asks to be "upgraded"
+to a persistent, bidirectional socket. By default nginx treats every request as a
+short-lived HTTP call, so it needs explicit headers to allow that upgrade to pass
+through instead of being dropped:
+- `proxy_http_version 1.1` — WebSocket upgrades require HTTP/1.1.
+- `proxy_set_header Upgrade $http_upgrade;` and `proxy_set_header Connection "Upgrade";`
+  — these two headers are what actually convert the connection from HTTP to WS.
+- `proxy_read_timeout 86400` — keeps long-lived chat connections from being closed
+  by nginx's default (much shorter) timeout.
 
 The frontend itself opens the socket using `window.location.protocol`/`host`, so the
 same build works unmodified over `http/ws` locally and `https/wss` behind a domain +
 TLS later — no hardcoded URLs.
 
-## 4. Issues Found in the Original Template & How They Were Fixed
+## 5. Issues Found in the Original Template & How They Were Fixed
 
 | # | Issue | Fix |
 |---|---|---|
@@ -54,7 +67,7 @@ TLS later — no hardcoded URLs.
 | 3 | WebSocket handshake failed ("Disconnected" forever) | `nginx.conf` proxy_pass pointed at `localhost:8000` (meaningless inside the nginx container) and was missing the `Upgrade`/`Connection` headers — changed the upstream to `backend:8000` and added the required headers |
 | 4 | No automated deployment | Added `.github/workflows/deploy.yml` — GitHub Actions SSHes into the EC2 host on every push to `main`, pulls latest code, and runs `docker compose up -d --build` |
 
-## 5. CI/CD Pipeline
+## 6. CI/CD Pipeline
 
 `.github/workflows/deploy.yml` runs on every push to `main`:
 1. Checks out the repo (on the GitHub runner, just to trigger the job).
@@ -71,9 +84,9 @@ Required GitHub repository secrets (**Settings → Secrets and variables → Act
 | `EC2_SSH_KEY` | Contents of the private key (`.pem`) used to SSH into the box |
 | `EC2_APP_DIR` | Absolute path to the repo on the server, e.g. `/home/ubuntu/devops` |
 
-## 6. Deploying to AWS EC2 (Free Tier)
+## 7. Deploying to AWS EC2 (Free Tier)
 
-### 6.1 Launch the instance
+### 7.1 Launch the instance
 1. EC2 → Launch Instance → **Ubuntu 22.04 LTS**, instance type `t2.micro` (free tier).
 2. Create/select a key pair (download the `.pem` — this becomes `EC2_SSH_KEY`).
 3. Security Group — inbound rules:
@@ -81,7 +94,7 @@ Required GitHub repository secrets (**Settings → Secrets and variables → Act
    - `80` (HTTP) — `0.0.0.0/0`
 4. Launch, note the **public IPv4 address**.
 
-### 6.2 One-time server setup
+### 7.2 One-time server setup
 SSH in and install Docker:
 ```bash
 ssh -i key.pem ubuntu@3.110.166.186
@@ -97,16 +110,16 @@ docker compose up -d --build
 Visit `http://3.110.166.186` — the chat app should load, and multiple browser tabs
 should chat in real time.
 
-### 6.3 Wire up CI/CD
+### 7.3 Wire up CI/CD
 1. Add the four secrets above in GitHub.
 2. Push any change to `main` — GitHub Actions will SSH in, pull, and redeploy
    automatically. Check progress under the repo's **Actions** tab.
 
-### 6.4 Verify auto-restart
+### 7.4 Verify auto-restart
 Containers use `restart: unless-stopped`, so `sudo reboot` on the instance brings
 both containers back up without manual intervention.
 
-## 7. Running Locally
+## 8. Running Locally
 ```bash
 git clone https://github.com/LohadeDarshan/devops.git
 cd devops
