@@ -1,0 +1,36 @@
+name: Deploy to AWS EC2
+
+# Runs automatically on every push to main.
+# You can also trigger it manually from the Actions tab.
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            cd ${{ secrets.EC2_APP_DIR }}
+            echo "Pulling latest code..."
+            git pull origin main
+            echo "Rebuilding and restarting containers..."
+            docker compose down
+            docker compose up -d --build
+            echo "Cleaning up dangling images..."
+            docker image prune -f
+            echo "Deployment complete."
+            docker compose ps
