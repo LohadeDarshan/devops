@@ -25,12 +25,20 @@ jobs:
           script: |
             set -e
             cd ${{ secrets.EC2_APP_DIR }}
-            echo "Pulling latest code..."
-            git pull origin main
-            echo "Rebuilding and restarting containers..."
-            docker compose down
-            docker compose up -d --build
+
+            echo "Syncing with latest code on main..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "Building new images (old containers keep running until this finishes)..."
+            docker compose build
+
+            echo "Removing old containers and starting new ones..."
+            docker compose down --remove-orphans || true
+            docker compose up -d
+
             echo "Cleaning up dangling images..."
             docker image prune -f
-            echo "Deployment complete."
+
+            echo "Deployment complete. Current status:"
             docker compose ps
