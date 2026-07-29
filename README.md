@@ -10,7 +10,9 @@ via a GitHub Actions CI/CD pipeline.
 
 ## 1. Architecture Diagram
 
-![Architecture Diagram](./architecture-diagram.svg)
+## 1. Architecture Diagram
+
+![Architecture Diagram](docs/architecture.png)
 
 
 Two containers on a single Docker Compose bridge network (`websocket-network`):
